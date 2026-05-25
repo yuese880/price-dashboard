@@ -178,6 +178,25 @@
         }
         .alert-title::before { content: '⚠'; font-size: 18px; }
         
+        /* 低价明细滚动容器：固定高度，超过15行时内部滚动 */
+        .alert-table-wrapper {
+            max-height: 480px;   /* 约15行高度（每行约32px）*/
+            overflow-y: auto;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .alert-table-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+        .alert-table-wrapper::-webkit-scrollbar-track {
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        .alert-table-wrapper::-webkit-scrollbar-thumb {
+            background: #d9d9d9;
+            border-radius: 3px;
+        }
+        
         .alert-table {
             width: 100%;
             border-collapse: separate;
@@ -186,7 +205,6 @@
             border-radius: 10px;
             overflow: hidden;
             font-size: 13px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
         .alert-table th, .alert-table td {
             padding: 12px 16px;
@@ -197,6 +215,9 @@
             background: #fafafa;
             font-weight: 600;
             color: #595959;
+            position: sticky;
+            top: 0;
+            z-index: 1;
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -330,7 +351,8 @@
                 <div class="chart-card full-width alert-section">
                     <div class="alert-title">⚠️ 价格预警（价差低于0的商品）</div>
                     <div id="dwAlertContainer">
-                        <table class="alert-table" id="dwAlertTable" style="display:none;">
+                        <div class="alert-table-wrapper" id="dwAlertWrapper" style="display:none;">
+                        <table class="alert-table" id="dwAlertTable">
                             <thead>
                                 <tr>
                                     <th>日期</th>
@@ -345,6 +367,7 @@
                             </thead>
                             <tbody id="dwAlertBody"></tbody>
                         </table>
+                        </div>
                         <div class="no-alert" id="dwNoAlert">暂无预警商品</div>
                     </div>
                 </div>
@@ -418,7 +441,8 @@
                 <div class="chart-card full-width alert-section">
                     <div class="alert-title">⚠️ 价格预警（价差低于0的商品）</div>
                     <div id="lkAlertContainer">
-                        <table class="alert-table" id="lkAlertTable" style="display:none;">
+                        <div class="alert-table-wrapper" id="lkAlertWrapper" style="display:none;">
+                        <table class="alert-table" id="lkAlertTable">
                             <thead>
                                 <tr>
                                     <th>日期</th>
@@ -433,6 +457,7 @@
                             </thead>
                             <tbody id="lkAlertBody"></tbody>
                         </table>
+                        </div>
                         <div class="no-alert" id="lkNoAlert">暂无预警商品</div>
                     </div>
                 </div>
@@ -637,12 +662,13 @@
                 });
             });
             
-            // 极限价折线（虚线红色）- 按日期+品规分组，每天显示
+            // 极限价折线（虚线红色）- 按日期取所有有效极限价的最低值（保守策略）
             const limitData = [];
             dates.forEach(date => {
                 const items = data.filter(d => d['日期'] === date && (d['极限价'] || 0) > 0);
-                const avgLimit = items.length > 0 ? items.reduce((sum, d) => sum + d['极限价'], 0) / items.length : null;
-                limitData.push(avgLimit ? parseFloat(avgLimit.toFixed(2)) : null);
+                // 取最低极限价（品规不统一时以最严格（最低）极限价为准）
+                const minLimit = items.length > 0 ? Math.min(...items.map(d => d['极限价'])) : null;
+                limitData.push(minLimit !== null ? parseFloat(minLimit.toFixed(2)) : null);
             });
             // 只有至少有一个有效极限价数据时才添加极限价折线
             const hasValidLimit = limitData.some(v => v !== null);
@@ -910,15 +936,15 @@
             const filtered = getFilteredData(duoweiData, 'dw');
             const alerts = filtered.filter(d => d['价差'] < 0);
             
-            const table = document.getElementById('dwAlertTable');
+            const wrapper = document.getElementById('dwAlertWrapper');
             const noAlert = document.getElementById('dwNoAlert');
             const tbody = document.getElementById('dwAlertBody');
             
             if (alerts.length === 0) {
-                table.style.display = 'none';
+                wrapper.style.display = 'none';
                 noAlert.style.display = 'block';
             } else {
-                table.style.display = 'table';
+                wrapper.style.display = 'block';
                 noAlert.style.display = 'none';
                 tbody.innerHTML = alerts.map(d => `
                     <tr>
@@ -939,15 +965,15 @@
             const filtered = getFilteredData(lesukeData, 'lk');
             const alerts = filtered.filter(d => d['价差'] < 0);
             
-            const table = document.getElementById('lkAlertTable');
+            const wrapper = document.getElementById('lkAlertWrapper');
             const noAlert = document.getElementById('lkNoAlert');
             const tbody = document.getElementById('lkAlertBody');
             
             if (alerts.length === 0) {
-                table.style.display = 'none';
+                wrapper.style.display = 'none';
                 noAlert.style.display = 'block';
             } else {
-                table.style.display = 'table';
+                wrapper.style.display = 'block';
                 noAlert.style.display = 'none';
                 tbody.innerHTML = alerts.map(d => `
                     <tr>
